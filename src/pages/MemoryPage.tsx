@@ -103,12 +103,12 @@ const MemoryPage = () => {
           <div className="text-center mb-8">
             <GiftIcon className="w-8 h-8 mx-auto text-amber-500" />
             <p className="mt-2 text-sm text-slate-500 font-serif">Memory Code: <span className="font-bold text-slate-700">{memory.slug}</span></p>
+            <p className="mt-1 text-xs text-slate-400">Use this code to share and revisit from any device.</p>
             {isOwner && (
-              <Link to={`/edit/${memory.slug}`} className="mt-2 inline-block bg-gray-200 text-slate-700 text-xs font-bold py-1 px-3 rounded-full hover:bg-gray-300 transition-colors">
+              <Link to={`/edit/${memory.slug}`} className="mt-3 inline-block bg-gray-200 text-slate-700 text-xs font-bold py-1 px-3 rounded-full hover:bg-gray-300 transition-colors">
                   Edit Memory
               </Link>
             )}
-            <p className="mt-1 text-xs text-slate-400">Use this code to share and revisit from any device.</p>
           </div>
 
           <div className="prose prose-lg max-w-none text-slate-700 whitespace-pre-wrap font-sans text-center">
