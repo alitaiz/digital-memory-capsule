@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { Memory, CreatedMemoryInfo, MemoryUpdatePayload, MemorySummary } from '../types';
 import { API_BASE_URL } from '../config';
@@ -99,9 +100,12 @@ export const useMemories = () => {
     setLoading(true);
     try {
       const { title, shortMessage, memoryContent, images, slug } = memoryData;
-      // Generate slug and editKey here
+      
       const finalSlug = slug?.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || generateSlug(title);
-      const editKey = crypto.randomUUID();
+      // Fallback for crypto.randomUUID
+      const editKey = typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
       const newMemory: Memory = {
         title,

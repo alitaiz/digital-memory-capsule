@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
 
@@ -175,9 +176,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesChange, on
     }
     
     const generateId = () =>
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? (crypto as Crypto).randomUUID()
-        : Math.random().toString(36).substring(2, 10);
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
     const fileProcessingPromises = files.map(file => {
       const id = generateId();
