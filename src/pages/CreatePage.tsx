@@ -4,7 +4,7 @@ import { useMemoriesContext } from '../App';
 import { ImageUploader } from '../components/ImageUploader';
 import { LoadingSpinner, Toast, SparkleIcon } from '../components/ui';
 import { MemoryUpdatePayload } from '../types';
-import { uploadImages } from '../hooks/useMemorials';
+import { uploadImages, checkSlugExists } from '../hooks/useMemorials';
 
 const MAX_TOTAL_IMAGES = 5;
 
@@ -112,15 +112,26 @@ const CreatePage = () => {
     setIsLoading(true);
 
     try {
+      // --- PRE-FLIGHT CHECK FOR DUPLICATE SLUG ---
+      // Only run this check if creating a new memory with a user-provided slug.
+      if (!isEditMode && slug.trim()) {
+          const slugIsTaken = await checkSlugExists(slug.trim());
+          if (slugIsTaken) {
+              setError(`The memory code "${slug.trim()}" is already in use. Please choose another.`);
+              setIsLoading(false);
+              return; // Stop execution, preserving the form state (including images).
+          }
+      }
+
       let uploadedImageUrls: string[] = [];
-      // Step 1: Upload new images if there are any. This happens first.
+      // Step 2: Upload new images only after validation passes.
       if (newFiles.length > 0) {
         uploadedImageUrls = await uploadImages(newFiles);
       }
       
       const finalImages = [...existingImages, ...uploadedImageUrls];
 
-      // Step 2: Proceed with creating or updating the memory in the database.
+      // Step 3: Proceed with creating or updating the memory.
       if (isEditMode) {
         if (!editSlug || !editKey) {
           throw new Error('Could not update memory. Key information is missing.');
@@ -138,10 +149,8 @@ const CreatePage = () => {
             navigate(`/memory/${editSlug}`);
           }, 2000);
         } else {
-          // This error is from the KV update, not the upload. Images are already on R2.
-          // The user can try again without re-uploading, but for now we'll just show the error.
           setError(result.error || 'An unknown error occurred during update.');
-          setIsLoading(false); // Stop loading on API failure
+          setIsLoading(false);
         }
       } else {
         const memoryData = {
@@ -158,18 +167,14 @@ const CreatePage = () => {
             navigate(`/memory/${result.slug}`);
           }, 2000);
         } else {
-          // If this fails (e.g., duplicate slug), the selected files in `newFiles` state are preserved.
-          // The user can fix the slug and resubmit. The images will be re-uploaded, but this is an acceptable
-          // trade-off for fixing the orphan file bug.
           setError(result.error || 'An unknown error occurred. Please try again.');
-          setIsLoading(false); // Stop loading on API failure
+          setIsLoading(false);
         }
       }
     } catch (uploadError) {
-      // This catch block handles errors from the uploadImages function.
       const errorMessage = uploadError instanceof Error ? uploadError.message : 'An unknown error occurred during upload.';
       setError(`Image upload failed: ${errorMessage}`);
-      setIsLoading(false); // Stop loading on upload failure
+      setIsLoading(false);
     }
   };
   

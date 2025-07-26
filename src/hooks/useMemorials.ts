@@ -67,6 +67,32 @@ export const uploadImages = async (files: File[]): Promise<string[]> => {
 };
 
 
+/**
+ * Checks if a given slug already exists on the backend.
+ * @param slug The slug to check.
+ * @returns A promise that resolves to true if the slug exists, false otherwise.
+ */
+export const checkSlugExists = async (slug: string): Promise<boolean> => {
+    if (!slug) return false;
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/memory/check/${slug}`);
+        if (!response.ok) {
+            // Any non-200 response means we can't confirm existence,
+            // so we assume it doesn't exist to allow the user to proceed.
+            // The final check is still on the server during POST.
+            console.error(`Slug check for "${slug}" failed with status: ${response.status}`);
+            return false;
+        }
+        const data = await response.json();
+        return data.exists === true;
+    } catch (error) {
+        console.error(getApiErrorMessage(error, `checking slug '${slug}'`));
+        // Let the user proceed on network failure.
+        return false;
+    }
+};
+
+
 // This hook manages interactions with the remote API and local storage for ownership/access
 export const useMemories = () => {
   const [loading, setLoading] = useState<boolean>(false);

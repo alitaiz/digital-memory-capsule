@@ -3,7 +3,7 @@
 // In a real-world project, you should `npm install -D @cloudflare/workers-types`
 // and configure it in `tsconfig.json`.
 interface KVNamespace {
-  get(key: string): Promise<string | null>;
+  get(key: string, options?: { type: 'json' }): Promise<string | null | any>;
   put(key: string, value: string): Promise<void>;
   delete(key: string): Promise<void>;
 }
@@ -74,6 +74,24 @@ export default {
     const path = url.pathname;
 
     // --- Simple Router ---
+    
+    // GET /api/memory/check/:slug: Lightweight check for slug existence.
+    // This is checked first to avoid conflicts with the more general /api/memory/:slug route.
+    if (request.method === "GET" && path.startsWith('/api/memory/check/')) {
+        const slug = path.substring('/api/memory/check/'.length);
+        if (!slug) {
+            return new Response(JSON.stringify({ error: "Slug is required for check." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        try {
+            const value = await env.MEMORIES_KV.get(slug);
+            const exists = value !== null;
+            return new Response(JSON.stringify({ exists }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        } catch (e) {
+            console.error(`Error checking slug ${slug}:`, e);
+            const errorDetails = e instanceof Error ? e.message : String(e);
+            return new Response(JSON.stringify({ error: `Internal Server Error: ${errorDetails}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+    }
 
     // The AI rewrite endpoint is handled by the dedicated proxy server.
 
