@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
 
@@ -16,6 +15,17 @@ interface ImageUploaderProps {
   onUploadingChange?: (isUploading: boolean) => void;
   maxImages?: number;
 }
+
+const getApiErrorMessage = (error: unknown, context: string): string => {
+  console.error(`API call failed during ${context}:`, error);
+  if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      return `Network request failed. This may be due to a connection issue, a CORS policy, or the server being offline. (Context: ${context})`;
+  }
+  if (error instanceof Error) {
+      return error.message;
+  }
+  return `An unknown error occurred during upload. (Context: ${context})`;
+};
 
 const resizeImage = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
@@ -147,7 +157,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesChange, on
       
       return { ...uploadable, status: 'success', publicUrl };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during upload.';
+      const errorMessage = getApiErrorMessage(error, `getting upload URL for ${uploadable.file.name}`);
       console.error(`Upload failed for ${uploadable.file.name}:`, errorMessage);
       return { ...uploadable, status: 'error', error: errorMessage };
     }

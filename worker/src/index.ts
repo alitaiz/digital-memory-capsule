@@ -1,4 +1,3 @@
-
 // To address TypeScript errors when @cloudflare/workers-types is not available,
 // we'll provide minimal type definitions for the Cloudflare environment.
 // In a real-world project, you should `npm install -D @cloudflare/workers-types`
@@ -132,8 +131,8 @@ export default {
 
         } catch (e) {
             console.error("Error in /api/memories/list:", e);
-            const errorDetails = e instanceof Error ? e.message : "Bad Request or Internal Error";
-            return new Response(JSON.stringify({ error: errorDetails }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            const errorDetails = e instanceof Error ? e.message : "An unknown error occurred during request processing.";
+            return new Response(JSON.stringify({ error: `Bad Request or Internal Error: ${errorDetails}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
     }
 
@@ -152,7 +151,9 @@ export default {
         await env.MEMORIES_KV.put(newMemory.slug, JSON.stringify(newMemory));
         return new Response(JSON.stringify({ success: true, slug: newMemory.slug }), { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (e) {
-        return new Response(JSON.stringify({ error: "Bad Request or Internal Error" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.error("Error creating memory:", e);
+        const errorDetails = e instanceof Error ? e.message : "An unknown error occurred during request processing.";
+        return new Response(JSON.stringify({ error: `Bad Request or Internal Error: ${errorDetails}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
@@ -163,14 +164,20 @@ export default {
 
       // GET /api/memory/:slug: Retrieves a memory.
       if (request.method === "GET") {
-        const memoryJson = await env.MEMORIES_KV.get(slug);
-        if (memoryJson === null) {
-          return new Response(JSON.stringify({ error: "Memory not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        try {
+            const memoryJson = await env.MEMORIES_KV.get(slug);
+            if (memoryJson === null) {
+              return new Response(JSON.stringify({ error: "Memory not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
+            // SECURITY: Omit editKey before sending to client
+            const memory: Partial<Memory> = JSON.parse(memoryJson);
+            delete memory.editKey;
+            return new Response(JSON.stringify(memory), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        } catch(e) {
+            console.error(`Error getting memory ${slug}:`, e);
+            const errorDetails = e instanceof Error ? e.message : String(e);
+            return new Response(JSON.stringify({ error: `Internal Server Error: ${errorDetails}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        // SECURITY: Omit editKey before sending to client
-        const memory: Partial<Memory> = JSON.parse(memoryJson);
-        delete memory.editKey;
-        return new Response(JSON.stringify(memory), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       
       // PUT /api/memory/:slug: Updates an existing memory.

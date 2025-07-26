@@ -1,10 +1,27 @@
-
 import { useState, useCallback } from 'react';
 import { Memory, CreatedMemoryInfo, MemoryUpdatePayload, MemorySummary } from '../types';
 import { API_BASE_URL } from '../config';
 
 const LOCAL_CREATED_MEMORIES_KEY = 'digital_gift_created_memories';
 const LOCAL_VISITED_SLUGS_KEY = 'digital_gift_visited_slugs';
+
+/**
+ * Creates a detailed error message from a caught error object.
+ * @param error The error object caught in a try-catch block.
+ * @param context A string describing the context of the API call (e.g., 'creating memory').
+ * @returns A user-friendly error string.
+ */
+const getApiErrorMessage = (error: unknown, context: string): string => {
+  console.error(`API call failed during ${context}:`, error);
+  if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+    return `Network request failed while ${context}. This may be a CORS issue, a network problem, or the server may be down. Please check the browser's developer console for more details.`;
+  }
+  if (error instanceof Error) {
+    return `A client-side error occurred while ${context}: ${error.message}`;
+  }
+  return `An unknown error occurred while ${context}. Please check your connection and try again.`;
+};
+
 
 // This hook manages interactions with the remote API and local storage for ownership/access
 export const useMemories = () => {
@@ -106,12 +123,11 @@ export const useMemories = () => {
         addCreatedMemory(newMemory.slug, newMemory.editKey);
         return { success: true, slug: newMemory.slug };
       } else {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || `Failed to create memory. Status: ${response.status}` };
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, error: errorData.error || `Failed to create memory. Server responded with status: ${response.status}` };
       }
     } catch (error) {
-      console.error("API call to addMemory failed:", error);
-      return { success: false, error: "Network error. Please check your connection and try again." };
+      return { success: false, error: getApiErrorMessage(error, 'creating memory') };
     } finally {
       setLoading(false);
     }
@@ -122,13 +138,15 @@ export const useMemories = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/memory/${slug}`);
       if (!response.ok) {
-        return undefined;
+        if(response.status === 404) return undefined;
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with status ${response.status}`);
       }
       const data: Omit<Memory, 'editKey'> = await response.json();
       addVisitedSlug(slug); // Add to visited list on successful fetch
       return data;
     } catch (error) {
-      console.error("API call to getMemoryBySlug failed:", error);
+      console.error(getApiErrorMessage(error, `getting memory '${slug}'`));
       return undefined;
     } finally {
       setLoading(false);
@@ -148,14 +166,14 @@ export const useMemories = () => {
         });
 
         if (!response.ok) {
-            console.error("API call to getMemorySummaries failed:", response.statusText);
-            return [];
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server responded with status ${response.status}`);
         }
         
         const data: MemorySummary[] = await response.json();
         return data;
     } catch (error) {
-        console.error("Network error during getMemorySummaries:", error);
+        console.error(getApiErrorMessage(error, "getting memory list"));
         return [];
     } finally {
         setLoading(false);
@@ -180,8 +198,7 @@ export const useMemories = () => {
       const errorData = await response.json().catch(() => ({}));
       return { success: false, error: errorData.error || `Failed to delete. Server responded with ${response.status}` };
     } catch (error) {
-      console.error("API call to deleteMemory failed:", error);
-      return { success: false, error: "Network error during deletion. Please check your connection." };
+      return { success: false, error: getApiErrorMessage(error, `deleting memory '${slug}'`) };
     } finally {
       setLoading(false);
     }
@@ -205,8 +222,7 @@ export const useMemories = () => {
         const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || `Failed to update. Server responded with ${response.status}` };
     } catch (error) {
-      console.error("API call to updateMemory failed:", error);
-      return { success: false, error: "Network error during update. Please check your connection." };
+        return { success: false, error: getApiErrorMessage(error, `updating memory '${slug}'`) };
     } finally {
       setLoading(false);
     }
