@@ -14,11 +14,15 @@ const MemoryPage = () => {
   const [error, setError] = useState('');
   const [isOwner, setIsOwner] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [searchCode, setSearchCode] = useState('');
 
   useEffect(() => {
     let isMounted = true;
     const fetchMemory = async () => {
       if (slug) {
+        // Reset search code when navigating to a new memory
+        setSearchCode('');
+        
         const createdMemories = getCreatedMemories();
         const ownerInfo = createdMemories.find(m => m.slug === slug);
         if (isMounted) {
@@ -40,6 +44,15 @@ const MemoryPage = () => {
     fetchMemory();
     return () => { isMounted = false; };
   }, [slug, getMemoryBySlug, navigate, getCreatedMemories]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedCode = searchCode.trim();
+    if (trimmedCode) {
+      navigate(`/memory/${trimmedCode}`);
+    }
+  };
+
 
   if (loading && !memory) {
     return (
@@ -111,18 +124,50 @@ const MemoryPage = () => {
         </div>
       </div>
       
-      <div className="text-center py-12 px-4 flex flex-col items-center space-y-4">
-        <Link to="/create" className="bg-sky-500 text-white font-bold py-3 px-6 rounded-full hover:bg-sky-600 transition-colors duration-300">
-          Create Another Memory
-        </Link>
-        <a
-          href="https://bobicare.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-amber-500 text-white font-bold py-3 px-6 rounded-full hover:bg-amber-600 transition-colors duration-300"
-        >
-          Visit Our Store on Amazon
-        </a>
+      <div className="text-center py-12 px-4">
+          <div className="flex flex-col items-center space-y-4">
+            <Link to="/create" className="bg-sky-500 text-white font-bold py-3 px-6 rounded-full hover:bg-sky-600 transition-colors duration-300">
+              Create Another Memory
+            </Link>
+            <a
+              href="https://bobicare.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-amber-500 text-white font-bold py-3 px-6 rounded-full hover:bg-amber-600 transition-colors duration-300"
+            >
+              Visit Our Store on Amazon
+            </a>
+          </div>
+
+          <div className="mt-12 max-w-md mx-auto">
+            <div className="bg-slate-100/70 p-6 rounded-2xl shadow-md border border-slate-200">
+                <form onSubmit={handleSearchSubmit}>
+                    <label htmlFor="page-bottom-search" className="font-serif text-slate-700 mb-2 block">
+                        Have a memory code?
+                    </label>
+                    <div className="flex items-center space-x-2">
+                        <input
+                            id="page-bottom-search"
+                            type="text"
+                            value={searchCode}
+                            onChange={(e) => setSearchCode(e.target.value)}
+                            placeholder="e.g., surprise-party-24"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-full focus:ring-sky-500 focus:border-sky-500 transition-shadow"
+                        />
+                        <button
+                            type="submit"
+                            className="bg-sky-500 text-white p-2.5 rounded-full hover:bg-sky-600 transition-colors flex-shrink-0"
+                            aria-label="Find Memory"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
       </div>
     </div>
   );
