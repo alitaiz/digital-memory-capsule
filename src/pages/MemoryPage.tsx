@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
@@ -116,12 +115,14 @@ const MemoryPage = () => {
         <Link to="/create" className="bg-sky-500 text-white font-bold py-3 px-6 rounded-full hover:bg-sky-600 transition-colors duration-300">
           Create Another Memory
         </Link>
-         <button 
-          onClick={() => navigator.clipboard.writeText(window.location.href)}
-          className="bg-green-500 text-white font-bold py-3 px-6 rounded-full hover:bg-green-600 transition-colors duration-300"
+        <a
+          href="https://bobicare.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-amber-500 text-white font-bold py-3 px-6 rounded-full hover:bg-amber-600 transition-colors duration-300"
         >
-          Share this Memory
-        </button>
+          Visit Our Store on Amazon
+        </a>
       </div>
     </div>
   );
