@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { Memory, CreatedMemoryInfo, MemoryUpdatePayload, MemorySummary } from '../types';
 import { API_BASE_URL } from '../config';
@@ -21,6 +20,50 @@ const getApiErrorMessage = (error: unknown, context: string): string => {
     return `A client-side error occurred while ${context}: ${error.message}`;
   }
   return `An unknown error occurred while ${context}. Please check your connection and try again.`;
+};
+
+/**
+ * Handles the batch upload of files to R2. This is called on form submission.
+ * @param files An array of File objects to upload.
+ * @returns A promise that resolves to an array of public URLs for the uploaded images.
+ * @throws An error if any part of the upload process fails.
+ */
+export const uploadImages = async (files: File[]): Promise<string[]> => {
+  if (files.length === 0) return [];
+
+  const uploadPromises = files.map(async (file) => {
+    // 1. Get a secure, one-time upload URL from our worker
+    const response = await fetch(`${API_BASE_URL}/api/upload-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, contentType: file.type }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to get upload URL.' }));
+      throw new Error(errorData.error || `Server responded with ${response.status} for ${file.name}`);
+    }
+
+    const { uploadUrl, publicUrl } = await response.json();
+
+    // 2. Upload the file directly to R2 using the signed URL
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Direct upload for ${file.name} failed with status ${uploadResponse.status}. Check R2 bucket CORS policy.`);
+    }
+
+    return publicUrl;
+  });
+
+  // This will run all uploads in parallel and wait for all of them to complete.
+  // If one fails, it will reject the whole Promise.all, which is what we want.
+  const publicUrls = await Promise.all(uploadPromises);
+  return publicUrls;
 };
 
 

@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
 import { ImageUploader } from '../components/ImageUploader';
 import { LoadingSpinner, Toast, SparkleIcon } from '../components/ui';
 import { MemoryUpdatePayload } from '../types';
+import { uploadImages } from '../hooks/useMemorials';
 
 const MAX_TOTAL_IMAGES = 5;
 
@@ -19,12 +19,12 @@ const CreatePage = () => {
   const [slug, setSlug] = useState('');
   const [shortMessage, setShortMessage] = useState('');
   const [memoryContent, setMemoryContent] = useState('');
-  const [images, setImages] = useState<string[]>([]); // New images from uploader
+  const [newFiles, setNewFiles] = useState<File[]>([]); // New files from uploader
   const [existingImages, setExistingImages] = useState<string[]>([]); // For edit mode
   const [editKey, setEditKey] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [error, setError] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
@@ -105,56 +105,79 @@ const CreatePage = () => {
       setError('A title for the memory is required.');
       return;
     }
-    if (isUploadingImages) {
-        setError('Please wait for images to finish uploading.');
+    if (isProcessingImages) {
+        setError('Please wait for images to finish processing.');
         return;
     }
     setIsLoading(true);
 
-    if (isEditMode) {
+    try {
+      let uploadedImageUrls: string[] = [];
+      // Step 1: Upload new images if there are any. This happens first.
+      if (newFiles.length > 0) {
+        uploadedImageUrls = await uploadImages(newFiles);
+      }
+      
+      const finalImages = [...existingImages, ...uploadedImageUrls];
+
+      // Step 2: Proceed with creating or updating the memory in the database.
+      if (isEditMode) {
         if (!editSlug || !editKey) {
-            setError('Could not update memory. Key information is missing.');
-            setIsLoading(false);
-            return;
+          throw new Error('Could not update memory. Key information is missing.');
         }
         const updatedData: MemoryUpdatePayload = {
-            title,
-            shortMessage,
-            memoryContent,
-            images: [...existingImages, ...images],
+          title,
+          shortMessage,
+          memoryContent,
+          images: finalImages,
         };
         const result = await updateMemory(editSlug, editKey, updatedData);
         if (result.success) {
-            setShowToast(true);
-            setTimeout(() => {
-                navigate(`/memory/${editSlug}`);
-            }, 2000);
+          setShowToast(true);
+          setTimeout(() => {
+            navigate(`/memory/${editSlug}`);
+          }, 2000);
         } else {
-            setError(result.error || 'An unknown error occurred during update.');
-            setIsLoading(false);
+          // This error is from the KV update, not the upload. Images are already on R2.
+          // The user can try again without re-uploading, but for now we'll just show the error.
+          setError(result.error || 'An unknown error occurred during update.');
+          setIsLoading(false); // Stop loading on API failure
         }
-    } else {
+      } else {
         const memoryData = {
           title,
           slug: slug.trim(),
           shortMessage,
           memoryContent,
-          images,
+          images: finalImages,
         };
-
         const result = await addMemory(memoryData);
-        
         if (result.success && result.slug) {
-            setShowToast(true);
-            setTimeout(() => {
-                navigate(`/memory/${result.slug}`);
-            }, 2000);
+          setShowToast(true);
+          setTimeout(() => {
+            navigate(`/memory/${result.slug}`);
+          }, 2000);
         } else {
-            setError(result.error || 'An unknown error occurred. Please try again.');
-            setIsLoading(false);
+          // If this fails (e.g., duplicate slug), the selected files in `newFiles` state are preserved.
+          // The user can fix the slug and resubmit. The images will be re-uploaded, but this is an acceptable
+          // trade-off for fixing the orphan file bug.
+          setError(result.error || 'An unknown error occurred. Please try again.');
+          setIsLoading(false); // Stop loading on API failure
         }
+      }
+    } catch (uploadError) {
+      // This catch block handles errors from the uploadImages function.
+      const errorMessage = uploadError instanceof Error ? uploadError.message : 'An unknown error occurred during upload.';
+      setError(`Image upload failed: ${errorMessage}`);
+      setIsLoading(false); // Stop loading on upload failure
     }
   };
+  
+  const getButtonText = () => {
+    if (isProcessingImages) return 'Processing Images...';
+    if (isLoading) return isEditMode ? 'Updating Memory...' : 'Creating Memory...';
+    return isEditMode ? 'Update Memory' : 'Create Memory';
+  }
 
   return (
     <div className="min-h-screen bg-sky-50 pt-24 pb-12">
@@ -164,7 +187,7 @@ const CreatePage = () => {
           <h1 className="text-3xl font-bold font-serif text-center text-slate-800">{isEditMode ? 'Edit Memory' : 'Create a Memory'}</h1>
           <p className="text-center text-slate-600 mt-2">{isEditMode ? 'Update the details for this memory.' : 'Fill in the details to build a beautiful digital gift.'}</p>
 
-          {isLoading ? (
+          {isLoading && !showToast ? (
             <div className="py-20 flex justify-center">
               <LoadingSpinner />
             </div>
@@ -229,9 +252,10 @@ const CreatePage = () => {
               
               {maxNewImages > 0 ? (
                 <ImageUploader
-                  onImagesChange={setImages}
-                  onUploadingChange={setIsUploadingImages}
-                  maxImages={maxNewImages}
+                  onFilesChange={setNewFiles}
+                  onProcessingChange={setIsProcessingImages}
+                  existingImageCount={existingImages.length}
+                  maxImages={MAX_TOTAL_IMAGES}
                 />
               ) : (
                 <div>
@@ -248,8 +272,8 @@ const CreatePage = () => {
               
               {error && <p className="text-red-500 text-center">{error}</p>}
               
-              <button type="submit" className="w-full bg-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-amber-600 transition-colors duration-300 disabled:bg-slate-400" disabled={isLoading || isUploadingImages}>
-                {isUploadingImages ? 'Optimizing & Uploading...' : (isEditMode ? 'Update Memory' : 'Create Memory')}
+              <button type="submit" className="w-full bg-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-amber-600 transition-colors duration-300 disabled:bg-slate-400 disabled:cursor-not-allowed" disabled={isLoading || isProcessingImages}>
+                {getButtonText()}
               </button>
             </form>
           )}
