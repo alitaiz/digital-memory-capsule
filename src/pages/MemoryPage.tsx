@@ -96,7 +96,7 @@ const MemoryPage = () => {
           )}
           <div className="relative z-20 p-4 pb-24">
             <h1 className="text-5xl md:text-7xl font-bold font-serif">{memory.title}</h1>
-            {memory.shortMessage && <p className="mt-2 text-xl italic max-w-2xl mx-auto">"{memory.shortMessage}"</p>}
+            {memory.shortMessage && <p className="mt-2 text-xl italic max-w-2xl mx-auto line-clamp-2">"{memory.shortMessage}"</p>}
           </div>
         </div>
 
