@@ -1,3 +1,4 @@
+
 // To address TypeScript errors when @cloudflare/workers-types is not available,
 // we'll provide minimal type definitions for the Cloudflare environment.
 // In a real-world project, you should `npm install -D @cloudflare/workers-types`
@@ -43,6 +44,8 @@ interface Memory {
   images: string[]; // Now an array of public image URLs
   createdAt: string;
   editKey: string; // The secret key
+  avatarUrl?: string;
+  coverImageUrl?: string;
 }
 
 const corsHeaders = {
@@ -224,17 +227,21 @@ export default {
               // --- Robust Image Deletion Logic ---
               // The old list of images from KV
               const originalImageUrls = storedMemory.images || [];
-              // The new list of images from the client request
-              const newImageUrls = new Set(updateData.images || []);
-
-              // Find URLs that were in the old list but are not in the new list
-              const imagesToDelete = originalImageUrls.filter(url => !newImageUrls.has(url));
+              const imagesToDelete = originalImageUrls.filter(url => !(updateData.images || []).includes(url));
               
-              if (imagesToDelete.length > 0) {
+              const imageUrlsToDelete = [...imagesToDelete];
+              // Also check if avatar/cover are being replaced or removed
+              if (storedMemory.avatarUrl && storedMemory.avatarUrl !== updateData.avatarUrl) {
+                  imageUrlsToDelete.push(storedMemory.avatarUrl);
+              }
+              if (storedMemory.coverImageUrl && storedMemory.coverImageUrl !== updateData.coverImageUrl) {
+                  imageUrlsToDelete.push(storedMemory.coverImageUrl);
+              }
+
+              if (imageUrlsToDelete.length > 0) {
                   const s3 = getR2Client(env);
-                  const objectKeys = imagesToDelete.map(imageUrl => {
+                  const objectKeys = imageUrlsToDelete.map(imageUrl => {
                       try {
-                          // Extract path and remove leading slash to get the key
                           const key = new URL(imageUrl).pathname.substring(1);
                           if (key) return { Key: key };
                           return null;
@@ -251,20 +258,15 @@ export default {
                       }));
                       if (deleteResult.Errors && deleteResult.Errors.length > 0) {
                           console.error(`[Update] Errors deleting objects from R2 for slug ${slug}:`, deleteResult.Errors);
-                          const errorMessages = deleteResult.Errors.map(e => `${e.Key}: ${e.Message}`).join(', ');
-                          // Fail fast if R2 deletion fails
-                          throw new Error(`Failed to remove old images from storage: ${errorMessages}`);
                       }
                   }
               }
 
-              // Update the memory in KV with the new data
+              // Update the memory in KV with the new data. Spreading updateData handles all fields,
+              // including setting a field to null to remove it.
               const updatedMemory: Memory = {
                   ...storedMemory,
-                  title: updateData.title ?? storedMemory.title,
-                  shortMessage: updateData.shortMessage ?? storedMemory.shortMessage,
-                  memoryContent: updateData.memoryContent ?? storedMemory.memoryContent,
-                  images: updateData.images ?? storedMemory.images,
+                  ...updateData
               };
 
               await env.MEMORIES_KV.put(slug, JSON.stringify(updatedMemory));
@@ -301,15 +303,18 @@ export default {
 
           const memory: Memory = JSON.parse(memoryJson);
           
-          // SECURITY: Check if the provided key matches the stored key
           if (memory.editKey !== editKey) {
             return new Response(JSON.stringify({ error: 'Forbidden. Invalid edit key.' }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
           
-          // If keys match, proceed with deletion of R2 objects first
-          if (memory.images && memory.images.length > 0) {
+          // Collect all image URLs to delete
+          const allImageUrls = [...(memory.images || [])];
+          if (memory.avatarUrl) allImageUrls.push(memory.avatarUrl);
+          if (memory.coverImageUrl) allImageUrls.push(memory.coverImageUrl);
+          
+          if (allImageUrls.length > 0) {
             const s3 = getR2Client(env);
-            const objectKeys = memory.images.map(imageUrl => {
+            const objectKeys = allImageUrls.map(imageUrl => {
                 try {
                   return { Key: new URL(imageUrl).pathname.substring(1) };
                 } catch { return null; }
@@ -323,13 +328,11 @@ export default {
               if (deleteResult.Errors && deleteResult.Errors.length > 0) {
                   console.error(`[Delete] Errors deleting objects from R2 for slug ${slug}:`, deleteResult.Errors);
                   const errorMessages = deleteResult.Errors.map(e => `${e.Key}: ${e.Message}`).join(', ');
-                  // Throw an error to prevent deleting the KV entry if images fail to delete.
                   throw new Error(`Failed to delete images from storage: ${errorMessages}`);
               }
             }
           }
           
-          // Only delete KV entry after R2 objects are successfully deleted
           await env.MEMORIES_KV.delete(slug);
           return new Response(null, { status: 204, headers: corsHeaders });
 

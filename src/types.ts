@@ -7,6 +7,8 @@ export interface Memory {
   images: string[]; // Array of public image URLs from R2
   createdAt: string; // ISO date string
   editKey: string; // Secret key for editing/deleting
+  avatarUrl?: string;
+  coverImageUrl?: string;
 }
 
 export interface MemorySummary {
@@ -16,7 +18,7 @@ export interface MemorySummary {
 }
 
 export interface CreatedMemoryInfo {
-  slug: string;
+  slug:string;
   editKey: string;
 }
 
@@ -25,4 +27,6 @@ export interface MemoryUpdatePayload {
   shortMessage: string;
   memoryContent: string;
   images: string[];
+  avatarUrl?: string | null;
+  coverImageUrl?: string | null;
 }

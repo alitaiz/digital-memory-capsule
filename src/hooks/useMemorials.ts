@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { Memory, CreatedMemoryInfo, MemoryUpdatePayload, MemorySummary } from '../types';
 import { API_BASE_URL } from '../config';
@@ -165,7 +166,7 @@ export const useMemories = () => {
     return `${baseSlug}-${randomSuffix}`;
   }, []);
 
-  const addMemory = useCallback(async (memoryData: { title: string; shortMessage: string; memoryContent: string; images: string[]; slug?: string; }): Promise<{ success: boolean; error?: string, slug?: string }> => {
+  const addMemory = useCallback(async (memoryData: { title: string; shortMessage: string; memoryContent: string; images: string[]; slug?: string; avatarUrl?: string | null; coverImageUrl?: string | null; }): Promise<{ success: boolean; error?: string, slug?: string }> => {
     setLoading(true);
     try {
       const { title, shortMessage, memoryContent, images, slug } = memoryData;
@@ -184,6 +185,8 @@ export const useMemories = () => {
         slug: finalSlug,
         createdAt: new Date().toISOString(),
         editKey,
+        avatarUrl: memoryData.avatarUrl || undefined,
+        coverImageUrl: memoryData.coverImageUrl || undefined,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/memory`, {

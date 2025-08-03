@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
@@ -7,6 +8,44 @@ import { MemoryUpdatePayload } from '../types';
 import { uploadImages, checkSlugExists } from '../hooks/useMemorials';
 
 const MAX_TOTAL_IMAGES = 5;
+
+// A simple, self-contained component for a single image upload with preview.
+const SingleImageInput = ({
+  label,
+  preview,
+  onFileSelect,
+  onClear,
+  isProcessing,
+  shape = 'square'
+}: {
+  label: string;
+  preview: string | null;
+  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClear: () => void;
+  isProcessing: boolean;
+  shape?: 'square' | 'circle';
+}) => (
+    <div>
+        <label className="block text-sm font-medium text-slate-600 font-serif">{label}</label>
+        <div className="mt-1 flex items-center space-x-4 p-2 border-2 border-slate-300 border-dashed rounded-md h-28">
+            {preview ? (
+                <div className="relative">
+                    <img src={preview} alt="Preview" className={`h-24 w-24 object-cover shadow-sm ${shape === 'circle' ? 'rounded-full' : 'rounded-md'}`} />
+                    <button type="button" onClick={onClear} disabled={isProcessing} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600 disabled:bg-slate-400" aria-label={`Remove ${label}`}>&times;</button>
+                </div>
+            ) : (
+                <div className={`h-24 w-24 bg-slate-100 flex items-center justify-center ${shape === 'circle' ? 'rounded-full' : 'rounded-md'}`}>
+                    <svg className="h-10 w-10 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </div>
+            )}
+            <label htmlFor={label.toLowerCase().replace(' ','-')} className={`relative cursor-pointer bg-white rounded-md font-medium text-sky-500 hover:text-sky-600 px-3 py-2 text-center ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <span>{preview ? 'Change Image' : 'Upload Image'}</span>
+                <input id={label.toLowerCase().replace(' ','-')} type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" onChange={onFileSelect} disabled={isProcessing} />
+            </label>
+        </div>
+    </div>
+);
+
 
 const CreatePage = () => {
   const { slug: editSlug } = useParams<{ slug: string }>();
@@ -19,8 +58,17 @@ const CreatePage = () => {
   const [slug, setSlug] = useState('');
   const [shortMessage, setShortMessage] = useState('');
   const [memoryContent, setMemoryContent] = useState('');
-  const [newFiles, setNewFiles] = useState<File[]>([]); // New files from uploader
-  const [existingImages, setExistingImages] = useState<string[]>([]); // For edit mode
+  
+  // State for gallery images
+  const [newFiles, setNewFiles] = useState<File[]>([]); 
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  
+  // State for Avatar and Cover
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  
   const [editKey, setEditKey] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +95,9 @@ const CreatePage = () => {
                   setExistingImages(memory.images);
                   setSlug(memory.slug);
                   setEditKey(ownerInfo.editKey);
+                  setAvatarPreview(memory.avatarUrl || null);
+                  setCoverPreview(memory.coverImageUrl || null);
               } else {
-                  // Not the owner or memory doesn't exist, redirect
                   setError("You don't have permission to edit this memory or it doesn't exist.");
                   setTimeout(() => navigate('/list'), 2000);
               }
@@ -96,7 +145,33 @@ const CreatePage = () => {
   const handleRemoveExistingImage = (urlToRemove: string) => {
     setExistingImages(current => current.filter(url => url !== urlToRemove));
   };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      if (type === 'avatar') {
+        setAvatarFile(file);
+        setAvatarPreview(previewUrl);
+      } else {
+        setCoverFile(file);
+        setCoverPreview(previewUrl);
+      }
+    }
+    e.target.value = ''; // Reset input to allow re-selecting the same file
+  };
 
+  const handleClearFile = (type: 'avatar' | 'cover') => {
+    if (type === 'avatar') {
+      if (avatarPreview && avatarPreview.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
+      setAvatarFile(null);
+      setAvatarPreview(null);
+    } else {
+      if (coverPreview && coverPreview.startsWith('blob:')) URL.revokeObjectURL(coverPreview);
+      setCoverFile(null);
+      setCoverPreview(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,26 +187,32 @@ const CreatePage = () => {
     setIsLoading(true);
 
     try {
-      // --- PRE-FLIGHT CHECK FOR DUPLICATE SLUG ---
-      // Only run this check if creating a new memory with a user-provided slug.
       if (!isEditMode && slug.trim()) {
           const slugIsTaken = await checkSlugExists(slug.trim());
           if (slugIsTaken) {
               setError(`The memory code "${slug.trim()}" is already in use. Please choose another.`);
               setIsLoading(false);
-              return; // Stop execution, preserving the form state (including images).
+              return;
           }
+      }
+      
+      let finalAvatarUrl: string | null = avatarPreview;
+      if (avatarFile) {
+        finalAvatarUrl = (await uploadImages([avatarFile]))[0];
+      }
+      
+      let finalCoverUrl: string | null = coverPreview;
+      if (coverFile) {
+        finalCoverUrl = (await uploadImages([coverFile]))[0];
       }
 
       let uploadedImageUrls: string[] = [];
-      // Step 2: Upload new images only after validation passes.
       if (newFiles.length > 0) {
         uploadedImageUrls = await uploadImages(newFiles);
       }
       
       const finalImages = [...existingImages, ...uploadedImageUrls];
 
-      // Step 3: Proceed with creating or updating the memory.
       if (isEditMode) {
         if (!editSlug || !editKey) {
           throw new Error('Could not update memory. Key information is missing.');
@@ -141,13 +222,13 @@ const CreatePage = () => {
           shortMessage,
           memoryContent,
           images: finalImages,
+          avatarUrl: finalAvatarUrl,
+          coverImageUrl: finalCoverUrl,
         };
         const result = await updateMemory(editSlug, editKey, updatedData);
         if (result.success) {
           setShowToast(true);
-          setTimeout(() => {
-            navigate(`/memory/${editSlug}`);
-          }, 2000);
+          setTimeout(() => navigate(`/memory/${editSlug}`), 2000);
         } else {
           setError(result.error || 'An unknown error occurred during update.');
           setIsLoading(false);
@@ -159,13 +240,13 @@ const CreatePage = () => {
           shortMessage,
           memoryContent,
           images: finalImages,
+          avatarUrl: finalAvatarUrl,
+          coverImageUrl: finalCoverUrl,
         };
         const result = await addMemory(memoryData);
         if (result.success && result.slug) {
           setShowToast(true);
-          setTimeout(() => {
-            navigate(`/memory/${result.slug}`);
-          }, 2000);
+          setTimeout(() => navigate(`/memory/${result.slug}`), 2000);
         } else {
           setError(result.error || 'An unknown error occurred. Please try again.');
           setIsLoading(false);
@@ -206,6 +287,24 @@ const CreatePage = () => {
                 <label htmlFor="slug" className="block text-sm font-medium text-slate-600 font-serif">Custom Memory Code</label>
                 <input type="text" id="slug" value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder={isEditMode ? '' : "e.g., beach-trip-24 (auto-generated if blank)"} className="mt-1 block w-full px-4 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-500" disabled={isEditMode} />
               </div>
+              
+              <SingleImageInput
+                label="Cover Image (optional)"
+                preview={coverPreview}
+                onFileSelect={(e) => handleFileChange(e, 'cover')}
+                onClear={() => handleClearFile('cover')}
+                isProcessing={isLoading}
+              />
+
+              <SingleImageInput
+                label="Avatar Image (optional)"
+                preview={avatarPreview}
+                onFileSelect={(e) => handleFileChange(e, 'avatar')}
+                onClear={() => handleClearFile('avatar')}
+                isProcessing={isLoading}
+                shape="circle"
+              />
+
               <div>
                 <label htmlFor="shortMessage" className="block text-sm font-medium text-slate-600 font-serif">Short Message (e.g., "A day to remember!")</label>
                 <input type="text" id="shortMessage" value={shortMessage} onChange={e => setShortMessage(e.target.value)} className="mt-1 block w-full px-4 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500" />
@@ -236,7 +335,7 @@ const CreatePage = () => {
 
               {isEditMode && existingImages.length > 0 && (
                 <div>
-                    <label className="block text-sm font-medium text-slate-600 font-serif">Current Photos (click to remove)</label>
+                    <label className="block text-sm font-medium text-slate-600 font-serif">Current Gallery Photos (click to remove)</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mt-2 p-2 border border-slate-200 rounded-md">
                         {existingImages.map((imgUrl) => (
                             <div key={imgUrl} className="relative group aspect-square">
