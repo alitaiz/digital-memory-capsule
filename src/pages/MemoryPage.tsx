@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
@@ -85,7 +84,7 @@ const MemoryPage = () => {
       <div className="relative pb-16">
         {/* Hero Section */}
         <div 
-          className="h-80 md:h-96 w-full flex flex-col items-center justify-center text-white text-center group bg-cover bg-center relative"
+          className="h-80 md:h-96 w-full flex flex-col items-center justify-end text-white text-center group bg-cover bg-center relative"
           style={{ backgroundImage: `url(${coverImage})`, textShadow: '1px 1px 3px rgba(0,0,0,0.6)' }}
           onClick={memory.coverImageUrl ? () => setLightboxImage(coverImage) : undefined}
         >
