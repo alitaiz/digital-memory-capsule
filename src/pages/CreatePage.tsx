@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
-import { ImageUploader } from '../components/ImageUploader';
+import { ImageUploader, resizeImage } from '../components/ImageUploader';
 import { LoadingSpinner, Toast, SparkleIcon } from '../components/ui';
 import { MemoryUpdatePayload } from '../types';
 import { uploadImages } from '../hooks/useMemorials';
@@ -39,7 +38,7 @@ const SingleImageInput = ({
                 </div>
             )}
             <label htmlFor={label.toLowerCase().replace(' ','-')} className={`relative cursor-pointer bg-white rounded-md font-medium text-sky-500 hover:text-sky-600 px-3 py-2 text-center ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <span>{preview ? 'Change Image' : 'Upload Image'}</span>
+                <span>{isProcessing ? 'Processing...' : (preview ? 'Change Image' : 'Upload Image')}</span>
                 <input id={label.toLowerCase().replace(' ','-')} type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" onChange={onFileSelect} disabled={isProcessing} />
             </label>
         </div>
@@ -72,6 +71,8 @@ const CreatePage = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [isProcessingAvatar, setIsProcessingAvatar] = useState(false);
+  const [isProcessingCover, setIsProcessingCover] = useState(false);
   const [error, setError] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
@@ -144,19 +145,35 @@ const CreatePage = () => {
     setExistingImages(current => current.filter(url => url !== urlToRemove));
   };
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
     const file = e.target.files?.[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
+    e.target.value = ''; // Reset input immediately
+    if (!file) return;
+
+    const setProcessing = type === 'avatar' ? setIsProcessingAvatar : setIsProcessingCover;
+    setProcessing(true);
+    setError('');
+
+    try {
+      const resizedFile = await resizeImage(file);
+      const newPreviewUrl = URL.createObjectURL(resizedFile);
+      
       if (type === 'avatar') {
-        setAvatarFile(file);
-        setAvatarPreview(previewUrl);
+        if (avatarPreview && avatarPreview.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
+        setAvatarFile(resizedFile);
+        setAvatarPreview(newPreviewUrl);
       } else {
-        setCoverFile(file);
-        setCoverPreview(previewUrl);
+        if (coverPreview && coverPreview.startsWith('blob:')) URL.revokeObjectURL(coverPreview);
+        setCoverFile(resizedFile);
+        setCoverPreview(newPreviewUrl);
       }
+    } catch (err) {
+      console.error('Failed to resize image:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred during image processing.';
+      setError(`Image processing failed: ${errorMessage}`);
+    } finally {
+      setProcessing(false);
     }
-    e.target.value = ''; // Reset input to allow re-selecting the same file
   };
 
   const handleClearFile = (type: 'avatar' | 'cover') => {
@@ -178,7 +195,7 @@ const CreatePage = () => {
       setError('A title for the memory is required.');
       return;
     }
-    if (isProcessingImages) {
+    if (isProcessingImages || isProcessingAvatar || isProcessingCover) {
         setError('Please wait for images to finish processing.');
         return;
     }
@@ -248,7 +265,9 @@ const CreatePage = () => {
   };
   
   const getButtonText = () => {
-    if (isProcessingImages) return 'Processing Images...';
+    if (isProcessingAvatar) return 'Processing Avatar...';
+    if (isProcessingCover) return 'Processing Cover...';
+    if (isProcessingImages) return 'Processing Gallery Photos...';
     if (isLoading) return isEditMode ? 'Updating Memory...' : 'Creating Memory...';
     return isEditMode ? 'Update Memory' : 'Create Memory';
   }
@@ -277,7 +296,7 @@ const CreatePage = () => {
                 preview={coverPreview}
                 onFileSelect={(e) => handleFileChange(e, 'cover')}
                 onClear={() => handleClearFile('cover')}
-                isProcessing={isLoading}
+                isProcessing={isLoading || isProcessingCover}
               />
 
               <SingleImageInput
@@ -285,7 +304,7 @@ const CreatePage = () => {
                 preview={avatarPreview}
                 onFileSelect={(e) => handleFileChange(e, 'avatar')}
                 onClear={() => handleClearFile('avatar')}
-                isProcessing={isLoading}
+                isProcessing={isLoading || isProcessingAvatar}
                 shape="circle"
               />
 
@@ -360,7 +379,7 @@ const CreatePage = () => {
               
               {error && <p className="text-red-500 text-center">{error}</p>}
               
-              <button type="submit" className="w-full bg-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-amber-600 transition-colors duration-300 disabled:bg-slate-400 disabled:cursor-not-allowed" disabled={isLoading || isProcessingImages}>
+              <button type="submit" className="w-full bg-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-amber-600 transition-colors duration-300 disabled:bg-slate-400 disabled:cursor-not-allowed" disabled={isLoading || isProcessingImages || isProcessingAvatar || isProcessingCover}>
                 {getButtonText()}
               </button>
             </form>

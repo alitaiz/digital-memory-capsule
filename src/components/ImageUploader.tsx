@@ -16,7 +16,7 @@ interface ImageUploaderProps {
 }
 
 
-const resizeImage = (file: File): Promise<File> => {
+export const resizeImage = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
     const MAX_DIMENSION = 1920;
     const reader = new FileReader();
