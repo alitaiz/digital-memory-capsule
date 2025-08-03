@@ -68,32 +68,6 @@ export const uploadImages = async (files: File[]): Promise<string[]> => {
 };
 
 
-/**
- * Checks if a given slug already exists on the backend.
- * @param slug The slug to check.
- * @returns A promise that resolves to true if the slug exists, false otherwise.
- */
-export const checkSlugExists = async (slug: string): Promise<boolean> => {
-    if (!slug) return false;
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/memory/check/${slug}`);
-        if (!response.ok) {
-            // Any non-200 response means we can't confirm existence,
-            // so we assume it doesn't exist to allow the user to proceed.
-            // The final check is still on the server during POST.
-            console.error(`Slug check for "${slug}" failed with status: ${response.status}`);
-            return false;
-        }
-        const data = await response.json();
-        return data.exists === true;
-    } catch (error) {
-        console.error(getApiErrorMessage(error, `checking slug '${slug}'`));
-        // Let the user proceed on network failure.
-        return false;
-    }
-};
-
-
 // This hook manages interactions with the remote API and local storage for ownership/access
 export const useMemories = () => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -157,32 +131,21 @@ export const useMemories = () => {
 
 
   // --- API Functions ---
-  const generateSlug = useCallback((title: string): string => {
-    const baseSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    if (!baseSlug) {
-        return `memory-${Date.now().toString().slice(-6)}`;
-    }
-    const randomSuffix = Math.random().toString(36).substring(2, 6);
-    return `${baseSlug}-${randomSuffix}`;
-  }, []);
-
-  const addMemory = useCallback(async (memoryData: { title: string; shortMessage: string; memoryContent: string; images: string[]; slug?: string; avatarUrl?: string | null; coverImageUrl?: string | null; }): Promise<{ success: boolean; error?: string, slug?: string }> => {
+  const addMemory = useCallback(async (memoryData: { title: string; shortMessage: string; memoryContent: string; images: string[]; avatarUrl?: string | null; coverImageUrl?: string | null; }): Promise<{ success: boolean; error?: string, slug?: string }> => {
     setLoading(true);
     try {
-      const { title, shortMessage, memoryContent, images, slug } = memoryData;
+      const { title, shortMessage, memoryContent, images } = memoryData;
       
-      const finalSlug = slug?.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || generateSlug(title);
       // Fallback for crypto.randomUUID
       const editKey = typeof crypto !== 'undefined' && crypto.randomUUID
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
-      const newMemory: Memory = {
+      const memoryPayload = {
         title,
         shortMessage,
         memoryContent,
         images,
-        slug: finalSlug,
         createdAt: new Date().toISOString(),
         editKey,
         avatarUrl: memoryData.avatarUrl || undefined,
@@ -192,12 +155,13 @@ export const useMemories = () => {
       const response = await fetch(`${API_BASE_URL}/api/memory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMemory),
+        body: JSON.stringify(memoryPayload),
       });
 
       if (response.ok) {
-        addCreatedMemory(newMemory.slug, newMemory.editKey);
-        return { success: true, slug: newMemory.slug };
+        const result = await response.json();
+        addCreatedMemory(result.slug, editKey);
+        return { success: true, slug: result.slug };
       } else {
         const errorData = await response.json().catch(() => ({}));
         return { success: false, error: errorData.error || `Failed to create memory. Server responded with status: ${response.status}` };
@@ -207,7 +171,7 @@ export const useMemories = () => {
     } finally {
       setLoading(false);
     }
-  }, [addCreatedMemory, generateSlug]);
+  }, [addCreatedMemory]);
   
   const getMemoryBySlug = useCallback(async (slug: string): Promise<Omit<Memory, 'editKey'> | undefined> => {
     setLoading(true);
@@ -311,7 +275,6 @@ export const useMemories = () => {
     getMemorySummaries,
     deleteMemory,
     updateMemory,
-    generateSlug,
     getAllSlugs,
     getCreatedMemories,
     removeVisitedSlug,

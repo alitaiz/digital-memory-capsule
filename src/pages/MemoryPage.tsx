@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
@@ -34,7 +35,7 @@ const MemoryPage = () => {
             setError('');
             setRecoverCode('');
           } else {
-            setError(`Could not find a memorial with code "${slug}".`);
+            setError(`Could not find a memory with secret code "${slug}".`);
             setTimeout(() => navigate(`/recover?notfound=true&slug=${slug}`), 2500);
           }
         }
@@ -85,7 +86,7 @@ const MemoryPage = () => {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 text-center p-4">
             <SparkleIcon className="w-16 h-16 text-pink-400 animate-pulse" />
-            <p className="mt-4 font-serif text-slate-600 text-xl">Finding this memorial...</p>
+            <p className="mt-4 font-serif text-slate-600 text-xl">Finding this memory...</p>
         </div>
     );
   }
@@ -144,14 +145,14 @@ const MemoryPage = () => {
           {/* Main Card */}
           <div className={`bg-white rounded-2xl shadow-xl p-6 md:p-8 text-center ${memory.avatarUrl ? 'pt-28 md:pt-36' : 'pt-8'}`}>
             <div className="mt-4">
-                <p className="text-slate-600">Memorial Code: <strong className="font-mono bg-slate-100 p-1 rounded">{memory.slug}</strong></p>
-                <p className="text-sm text-slate-500 mt-1">Remember this code for easy access from any device.</p>
+                <p className="text-slate-600">Secret Code: <strong className="font-mono bg-slate-100 p-1 rounded">{memory.slug}</strong></p>
+                <p className="text-sm text-slate-500 mt-1">Remember this secret code for easy access from any device.</p>
             </div>
 
             {isOwner && (
                 <div className="mt-4">
                     <Link to={`/edit/${slug}`} className="inline-block bg-slate-200 text-slate-700 font-semibold py-2 px-5 rounded-full hover:bg-slate-300 transition-colors text-sm">
-                        Edit Memorial
+                        Edit Memory
                     </Link>
                 </div>
             )}
@@ -178,7 +179,7 @@ const MemoryPage = () => {
         <div className="container mx-auto max-w-3xl px-4 mt-10 space-y-8">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link to="/create" className="w-full sm:w-auto text-center font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-all duration-300 px-8 py-3 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                    Create Another Memorial Page
+                    Create Another Memory Page
                 </Link>
                 <a href="https://www.amazon.com" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto text-center font-semibold text-white bg-green-500 hover:bg-green-600 transition-all duration-300 px-8 py-3 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                     Visit Our Store on Amazon
@@ -186,15 +187,15 @@ const MemoryPage = () => {
             </div>
             
             <div className="max-w-md mx-auto bg-pink-50/70 backdrop-blur-sm p-6 rounded-2xl shadow-lg">
-                <h3 className="text-center font-serif text-slate-700 mb-3">Have a memorial code?</h3>
+                <h3 className="text-center font-serif text-slate-700 mb-3">Have a secret code?</h3>
                 <form onSubmit={handleRecoverSubmit} className="flex items-center gap-2">
                     <input
                         type="text"
                         value={recoverCode}
                         onChange={(e) => setRecoverCode(e.target.value)}
-                        placeholder="e.g., lucky-88"
+                        placeholder="e.g., 12345678"
                         className="w-full px-4 py-2 border border-slate-300 rounded-full focus:ring-pink-400 focus:border-pink-400 shadow-inner"
-                        aria-label="Memorial Code"
+                        aria-label="Secret Code"
                     />
                     <button type="submit" className="flex-shrink-0 bg-blue-400 text-white w-10 h-10 flex items-center justify-center rounded-full hover:bg-blue-500 transition-colors shadow-md" aria-label="Search">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>

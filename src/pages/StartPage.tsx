@@ -68,14 +68,14 @@ const StartPage = () => {
         )}
          <div className="mt-12 max-w-md mx-auto">
             <form onSubmit={handleRecoverSubmit} className="bg-white/60 backdrop-blur-md p-6 rounded-2xl shadow-lg">
-              <label htmlFor="recover-code" className="font-serif text-slate-700">Have a memory code?</label>
+              <label htmlFor="recover-code" className="font-serif text-slate-700">Have a secret code?</label>
               <div className="mt-2 flex space-x-2">
                 <input
                   id="recover-code"
                   type="text"
                   value={recoverCode}
                   onChange={(e) => setRecoverCode(e.target.value)}
-                  placeholder="e.g., surprise-party-24"
+                  placeholder="e.g., 12345678"
                   className="w-full px-4 py-2 border border-slate-300 rounded-full focus:ring-sky-500 focus:border-sky-500"
                 />
                 <button type="submit" className="bg-sky-500 text-white p-2 rounded-full hover:bg-sky-600 transition-colors">

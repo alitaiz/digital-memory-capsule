@@ -13,12 +13,11 @@ import { GiftIcon } from './components/ui';
 
 interface MemoriesContextType {
   loading: boolean;
-  addMemory: (memoryData: { title: string; shortMessage: string; memoryContent: string; images: string[]; slug?: string; }) => Promise<{ success: boolean; error?: string; slug?: string }>;
+  addMemory: (memoryData: { title: string; shortMessage: string; memoryContent: string; images: string[]; avatarUrl?: string | null, coverImageUrl?: string | null }) => Promise<{ success: boolean; error?: string; slug?: string }>;
   getMemoryBySlug: (slug: string) => Promise<Omit<Memory, 'editKey'> | undefined>;
   getMemorySummaries: (slugs: string[]) => Promise<MemorySummary[]>;
   deleteMemory: (slug: string, editKey: string) => Promise<{ success: boolean; error?: string }>;
   updateMemory: (slug: string, editKey: string, data: MemoryUpdatePayload) => Promise<{ success: boolean; error?: string; }>;
-  generateSlug: (title: string) => string;
   getAllSlugs: () => string[];
   getCreatedMemories: () => CreatedMemoryInfo[];
   removeVisitedSlug: (slug: string) => void;

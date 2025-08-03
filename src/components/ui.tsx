@@ -53,7 +53,7 @@ export const MemoryCard = ({ memory, onDelete, isOwner }: MemoryCardProps) => (
       </div>
       <div>
         <p className="font-serif font-bold text-slate-800">{memory.title}</p>
-        <p className="text-sm text-slate-500">Code: {memory.slug}</p>
+        <p className="text-sm text-slate-500">Secret Code: {memory.slug}</p>
       </div>
     </div>
     <div className="flex items-center space-x-2">

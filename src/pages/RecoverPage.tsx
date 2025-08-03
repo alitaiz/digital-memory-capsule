@@ -16,9 +16,9 @@ const RecoverPage = () => {
     const slug = searchParams.get('slug');
     if (notfound) {
       if (slug) {
-        setError(`We couldn't find a memory with the code "${slug}". Please check it or create a new one.`);
+        setError(`We couldn't find a memory with the secret code "${slug}". Please check it or create a new one.`);
       } else {
-        setError("We couldn't find that memory. Please check the code or create a new one.");
+        setError("We couldn't find that memory. Please check the secret code or create a new one.");
       }
     }
   }, [searchParams]);
@@ -28,7 +28,7 @@ const RecoverPage = () => {
     setError('');
     const trimmedCode = code.trim();
     if (!trimmedCode) {
-      setError('Please enter a memory code.');
+      setError('Please enter a secret code.');
       return;
     }
 
@@ -39,7 +39,7 @@ const RecoverPage = () => {
     if (memory) {
       navigate(`/memory/${trimmedCode}`);
     } else {
-      setError(`Memory with code "${trimmedCode}" not found. Please check the code and try again.`);
+      setError(`Memory with secret code "${trimmedCode}" not found. Please check the code and try again.`);
     }
   };
 
@@ -48,15 +48,15 @@ const RecoverPage = () => {
       <div className="max-w-md w-full">
         <div className="bg-white/70 backdrop-blur-md p-8 rounded-2xl shadow-xl text-center">
           <h1 className="text-2xl font-bold font-serif text-slate-800">Find a Memory</h1>
-          <p className="text-slate-600 mt-2">Enter the memory code to revisit a shared moment.</p>
+          <p className="text-slate-600 mt-2">Enter the secret code to revisit a shared moment.</p>
           <form onSubmit={handleSubmit} className="mt-6">
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Enter code, e.g., surprise-party-24"
+              placeholder="Enter secret code, e.g., 12345678"
               className="w-full px-4 py-3 border border-slate-300 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500"
-              aria-label="Memory Code"
+              aria-label="Secret Code"
               disabled={isLoading}
             />
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}

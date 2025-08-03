@@ -5,7 +5,7 @@ import { useMemoriesContext } from '../App';
 import { ImageUploader } from '../components/ImageUploader';
 import { LoadingSpinner, Toast, SparkleIcon } from '../components/ui';
 import { MemoryUpdatePayload } from '../types';
-import { uploadImages, checkSlugExists } from '../hooks/useMemorials';
+import { uploadImages } from '../hooks/useMemorials';
 
 const MAX_TOTAL_IMAGES = 5;
 
@@ -55,7 +55,6 @@ const CreatePage = () => {
   const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
-  const [slug, setSlug] = useState('');
   const [shortMessage, setShortMessage] = useState('');
   const [memoryContent, setMemoryContent] = useState('');
   
@@ -93,7 +92,6 @@ const CreatePage = () => {
                   setShortMessage(memory.shortMessage);
                   setMemoryContent(memory.memoryContent);
                   setExistingImages(memory.images);
-                  setSlug(memory.slug);
                   setEditKey(ownerInfo.editKey);
                   setAvatarPreview(memory.avatarUrl || null);
                   setCoverPreview(memory.coverImageUrl || null);
@@ -187,15 +185,6 @@ const CreatePage = () => {
     setIsLoading(true);
 
     try {
-      if (!isEditMode && slug.trim()) {
-          const slugIsTaken = await checkSlugExists(slug.trim());
-          if (slugIsTaken) {
-              setError(`The memory code "${slug.trim()}" is already in use. Please choose another.`);
-              setIsLoading(false);
-              return;
-          }
-      }
-      
       let finalAvatarUrl: string | null = avatarPreview;
       if (avatarFile) {
         finalAvatarUrl = (await uploadImages([avatarFile]))[0];
@@ -236,7 +225,6 @@ const CreatePage = () => {
       } else {
         const memoryData = {
           title,
-          slug: slug.trim(),
           shortMessage,
           memoryContent,
           images: finalImages,
@@ -282,10 +270,6 @@ const CreatePage = () => {
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-slate-600 font-serif">Memory Title *</label>
                 <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="mt-1 block w-full px-4 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500" required placeholder="e.g., Our Trip to the Beach" />
-              </div>
-              <div>
-                <label htmlFor="slug" className="block text-sm font-medium text-slate-600 font-serif">Custom Memory Code</label>
-                <input type="text" id="slug" value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder={isEditMode ? '' : "e.g., beach-trip-24 (auto-generated if blank)"} className="mt-1 block w-full px-4 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-500" disabled={isEditMode} />
               </div>
               
               <SingleImageInput
@@ -371,7 +355,7 @@ const CreatePage = () => {
               )}
               
               <div className="bg-blue-100 p-3 rounded-lg text-sm text-blue-800">
-                <p><strong>Important:</strong> This memory can only be permanently deleted or edited from <strong>this device</strong>. Please keep the memory code safe to share with others.</p>
+                  <p><strong>Important:</strong> After creation, you will receive a unique <strong>Secret Code</strong>. This memory can only be edited or deleted from <strong>this device</strong>. Please keep the Secret Code safe to share with others.</p>
               </div>
               
               {error && <p className="text-red-500 text-center">{error}</p>}

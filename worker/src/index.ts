@@ -65,6 +65,37 @@ const getR2Client = (env: Env) => {
   });
 };
 
+// --- Secret Code Generation ---
+const shuffle = (array: any[]) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
+
+const generateCode = (): string => {
+  // Each digit from 0-9 appears twice.
+  const digits = ['0','0','1','1','2','2','3','3','4','4','5','5','6','6','7','7','8','8','9','9'];
+  const shuffledDigits = shuffle(digits);
+  // Take the first 8 digits. This ensures each digit appears at most twice.
+  return shuffledDigits.slice(0, 8).join('');
+};
+
+const generateAndCheckCode = async (kv: KVNamespace): Promise<string> => {
+    let attempts = 0;
+    const maxAttempts = 20; // Safeguard against an infinite loop
+    while (attempts < maxAttempts) {
+        const code = generateCode();
+        const existing = await kv.get(code);
+        if (existing === null) {
+            return code;
+        }
+        attempts++;
+    }
+    throw new Error('Could not generate a unique secret code after multiple attempts.');
+};
+
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -78,24 +109,6 @@ export default {
 
     // --- Simple Router ---
     
-    // GET /api/memory/check/:slug: Lightweight check for slug existence.
-    // This is checked first to avoid conflicts with the more general /api/memory/:slug route.
-    if (request.method === "GET" && path.startsWith('/api/memory/check/')) {
-        const slug = path.substring('/api/memory/check/'.length);
-        if (!slug) {
-            return new Response(JSON.stringify({ error: "Slug is required for check." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        try {
-            const value = await env.MEMORIES_KV.get(slug);
-            const exists = value !== null;
-            return new Response(JSON.stringify({ exists }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        } catch (e) {
-            console.error(`Error checking slug ${slug}:`, e);
-            const errorDetails = e instanceof Error ? e.message : String(e);
-            return new Response(JSON.stringify({ error: `Internal Server Error: ${errorDetails}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-    }
-
     // The AI rewrite endpoint is handled by the dedicated proxy server.
 
     // POST /api/upload-url: Generates a secure URL for the frontend to upload a file directly to R2.
@@ -160,17 +173,22 @@ export default {
     // POST /api/memory: Creates a new memory record in KV.
     if (request.method === "POST" && path === "/api/memory") {
       try {
-        const newMemory: Memory = await request.json();
-        if (!newMemory.slug || !newMemory.title || !newMemory.editKey) {
-            return new Response(JSON.stringify({ error: 'Slug, Title, and Edit Key are required.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+        const newMemoryData: Omit<Memory, 'slug'> = await request.json(); // slug is not expected from client
+        if (!newMemoryData.title || !newMemoryData.editKey) {
+            return new Response(JSON.stringify({ error: 'Title and Edit Key are required.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
         }
-        const existing = await env.MEMORIES_KV.get(newMemory.slug);
-        if (existing !== null) {
-          return new Response(JSON.stringify({ error: `Slug "${newMemory.slug}" already exists.` }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
+        
+        const uniqueCode = await generateAndCheckCode(env.MEMORIES_KV);
+        
+        const memoryToStore: Memory = {
+            ...newMemoryData,
+            slug: uniqueCode
+        };
+
         // Store the complete object including the editKey
-        await env.MEMORIES_KV.put(newMemory.slug, JSON.stringify(newMemory));
-        return new Response(JSON.stringify({ success: true, slug: newMemory.slug }), { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        await env.MEMORIES_KV.put(memoryToStore.slug, JSON.stringify(memoryToStore));
+        // Return the generated slug to the client
+        return new Response(JSON.stringify({ success: true, slug: memoryToStore.slug }), { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (e) {
         console.error("Error creating memory:", e);
         const errorDetails = e instanceof Error ? e.message : "An unknown error occurred during request processing.";
