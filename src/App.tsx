@@ -48,7 +48,7 @@ const Header = () => {
     const isHomePage = location.pathname === '/';
 
     return (
-        <header className={`fixed top-0 left-0 right-0 z-10 transition-all duration-300 ${isHomePage ? 'bg-transparent' : 'bg-white/50 backdrop-blur-sm shadow-sm'}`}>
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isHomePage ? 'bg-transparent' : 'bg-white/50 backdrop-blur-sm shadow-sm'}`}>
             <nav className="container mx-auto px-6 py-3 flex justify-center items-center">
                 <Link to="/" className="flex items-center space-x-3 text-slate-700 group">
                     <GiftIcon className="w-6 h-6 text-sky-500 transition-transform duration-300 group-hover:scale-110" />

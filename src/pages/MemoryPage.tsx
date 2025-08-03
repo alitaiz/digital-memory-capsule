@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useMemoriesContext } from '../App';
@@ -84,7 +85,7 @@ const MemoryPage = () => {
       <div className="relative pb-16">
         {/* Hero Section */}
         <div 
-          className="h-60 md:h-72 w-full flex flex-col items-center justify-center text-white text-center group bg-cover bg-center relative"
+          className="h-80 md:h-96 w-full flex flex-col items-center justify-center text-white text-center group bg-cover bg-center relative"
           style={{ backgroundImage: `url(${coverImage})`, textShadow: '1px 1px 3px rgba(0,0,0,0.6)' }}
           onClick={memory.coverImageUrl ? () => setLightboxImage(coverImage) : undefined}
         >
@@ -94,7 +95,7 @@ const MemoryPage = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
             </div>
           )}
-          <div className="relative z-20 p-4 pb-12">
+          <div className="relative z-20 p-4 pb-24">
             <h1 className="text-5xl md:text-7xl font-bold font-serif">{memory.title}</h1>
             {memory.shortMessage && <p className="mt-2 text-xl italic max-w-2xl mx-auto">"{memory.shortMessage}"</p>}
           </div>
@@ -108,13 +109,13 @@ const MemoryPage = () => {
             <img 
               src={memory.avatarUrl} 
               alt={`${memory.title} avatar`} 
-              className="w-36 h-36 md:w-48 md:h-48 object-cover rounded-full border-4 border-white bg-white shadow-lg mx-auto -mb-20 md:-mb-24 relative z-20 cursor-pointer"
+              className="w-36 h-36 md:w-48 md:h-48 object-cover rounded-full border-4 border-white bg-white shadow-lg mx-auto -mb-24 md:-mb-32 relative z-20 cursor-pointer"
               onClick={() => setLightboxImage(memory.avatarUrl!)}
             />
           )}
           
           {/* Main Card */}
-          <div className={`bg-white rounded-2xl shadow-xl p-6 md:p-8 text-center ${memory.avatarUrl ? 'pt-24 md:pt-28' : 'pt-8'}`}>
+          <div className={`bg-white rounded-2xl shadow-xl p-6 md:p-8 text-center ${memory.avatarUrl ? 'pt-28 md:pt-36' : 'pt-8'}`}>
             <div className="mt-4">
                 <p className="text-slate-600">Memorial Code: <strong className="font-mono bg-slate-100 p-1 rounded">{memory.slug}</strong></p>
                 <p className="text-sm text-slate-500 mt-1">Remember this code for easy access from any device.</p>
