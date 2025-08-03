@@ -52,6 +52,34 @@ const MemoryPage = () => {
     }
   };
 
+  const calculateShortMessageStyle = (text: string | undefined): React.CSSProperties => {
+    if (!text) return {};
+
+    const length = text.length;
+    const maxFontSize = 1.25; // rem, equivalent to text-xl
+    const minFontSize = 0.875; // rem, equivalent to text-sm
+    const maxLengthThreshold = 180; // At this length or more, font is at its smallest
+    const minLengthThreshold = 80;  // Below this length, font is at its largest
+
+    let fontSize = maxFontSize;
+
+    if (length > minLengthThreshold) {
+      if (length >= maxLengthThreshold) {
+        fontSize = minFontSize;
+      } else {
+        // Calculate the interpolation factor (0.0 to 1.0)
+        const progress = (length - minLengthThreshold) / (maxLengthThreshold - minLengthThreshold);
+        // Apply the interpolation to the font size
+        fontSize = maxFontSize - progress * (maxFontSize - minFontSize);
+      }
+    }
+
+    return {
+      fontSize: `${fontSize}rem`,
+      lineHeight: '1.5', // A consistent, readable line-height
+    };
+  };
+
 
   if (loading && !memory) {
     return (
@@ -94,9 +122,9 @@ const MemoryPage = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
             </div>
           )}
-          <div className="relative z-20 p-4 pb-24">
+          <div className="relative z-20 p-4 pb-24 w-full">
             <h1 className="text-5xl md:text-7xl font-bold font-serif">{memory.title}</h1>
-            {memory.shortMessage && <p className="mt-2 text-xl italic max-w-2xl mx-auto line-clamp-2">"{memory.shortMessage}"</p>}
+            {memory.shortMessage && <p style={calculateShortMessageStyle(memory.shortMessage)} className="mt-2 italic max-w-2xl mx-auto">"{memory.shortMessage}"</p>}
           </div>
         </div>
 
