@@ -19,6 +19,8 @@ const MemoryPage = () => {
 
   useEffect(() => {
     let isMounted = true;
+    let redirectTimeoutId: ReturnType<typeof setTimeout>;
+
     const fetchMemory = async () => {
       if (slug) {
         
@@ -36,14 +38,17 @@ const MemoryPage = () => {
             setRecoverCode('');
           } else {
             setError(`Could not find a memory with secret code "${slug}".`);
-            setTimeout(() => navigate(`/recover?notfound=true&slug=${slug}`), 2500);
+            redirectTimeoutId = setTimeout(() => navigate(`/recover?notfound=true&slug=${slug}`), 2500);
           }
         }
       }
     };
 
     fetchMemory();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+      clearTimeout(redirectTimeoutId);
+    };
   }, [slug, getMemoryBySlug, navigate, getCreatedMemories]);
 
   const handleRecoverSubmit = (e: React.FormEvent) => {
